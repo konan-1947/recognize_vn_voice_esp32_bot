@@ -46,13 +46,18 @@ cd server
 pip install -r requirements.txt
 ```
 
-### 3. Upload code Arduino
+### 3. Kết nối phần cứng
+- Xem `PIN_CONFIGURATION.md` để biết cấu hình chân chi tiết
+- Xem `WIRING_DIAGRAM.md` để biết sơ đồ kết nối trực quan
+- Kết nối ESP32 với INMP441 theo hướng dẫn
+
+### 4. Upload code Arduino
 - Mở `test_voice2.ino` trong Arduino IDE
 - Cài đặt ESP32 board support
 - Cập nhật WiFi credentials trong `config.h`
 - Upload code lên ESP32
 
-### 4. Cấu hình server
+### 5. Cấu hình server
 - Kiểm tra IP của ESP32 trong Serial Monitor
 - Cập nhật `SERVER_IP` trong `config.h` nếu cần
 - Đảm bảo port 5005 (UDP) và 5000 (HTTP) không bị block
@@ -105,9 +110,13 @@ test_voice2/
 ├── test_voice2.ino                  # Code Arduino chính
 ├── .gitignore                       # Git ignore rules
 ├── README.md                        # Tài liệu này
+├── PIN_CONFIGURATION.md             # Cấu hình chân chi tiết
+├── WIRING_DIAGRAM.md                # Sơ đồ kết nối trực quan
 └── server/
     ├── google_speech_circular_server.py  # Server chính
     ├── requirements.txt             # Python dependencies
+    ├── INSTALL_LINUX.md            # Hướng dẫn cài đặt Linux
+    ├── INSTALL_WINDOWS.md          # Hướng dẫn cài đặt Windows
     ├── templates/
     │   └── index.html              # Web interface
     └── vosk-model-*/               # Speech models (optional)
