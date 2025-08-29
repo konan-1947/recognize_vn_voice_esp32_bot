@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Audio files
+*.wav
+*.mp3
+*.flac
+*.m4a
+recordings/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Model files (large binary files)
+*.bin
+*.model
+*.zip
+
+# Configuration files with sensitive data
+config_local.py
+.env.local
+secrets.json
+
+# Arduino build files
+*.elf
+*.hex
+*.bin
+build/
+
+# Python cache
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/ 

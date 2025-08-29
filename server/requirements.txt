@@ -1,0 +1,37 @@
+# ESP32 + INMP441 Real-time Streaming Server Requirements
+# Python libraries needed for Google Speech Recognition + Circular Buffer
+
+# Core web framework
+Flask>=2.3.0
+Flask-SocketIO>=5.3.0
+
+# Speech recognition (Google Speech Recognition)
+SpeechRecognition>=3.10.0
+
+# Audio processing
+numpy>=1.21.0
+
+# Additional utilities
+requests>=2.28.0
+
+# To install all dependencies:
+# pip install -r requirements.txt
+
+# Note: This server uses Google Speech Recognition API
+# Make sure you have a stable internet connection
+# For Vietnamese language support: vi-VN
+# 
+# Built-in modules used (no need to install):
+# - socket, struct, threading, queue, json, time, os, tempfile, wave
+# 
+# System requirements:
+# - Python 3.7+
+# - Internet connection for Google Speech API
+# - Microphone access (if testing locally)
+#
+# Features:
+# - Real-time audio streaming from ESP32 via UDP
+# - Circular buffer with lookback for continuous speech
+# - Google Speech Recognition API integration
+# - Web interface with Socket.IO for real-time updates
+# - Vietnamese language support (vi-VN)
