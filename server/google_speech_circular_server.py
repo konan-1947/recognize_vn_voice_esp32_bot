@@ -58,7 +58,7 @@ COMPRESSION_THRESHOLD = 0.3   # Dynamic range compression
 COMPRESSION_RATIO = 4.0       # Compression ratio
 # Điều chỉnh các ngưỡng để nhạy hơn:
 MIN_SPEECH_RMS = 200          # Giảm từ 500 xuống 200 (nhạy hơn)
-MIN_SILENCE_DURATION = 0.5    # Giảm từ 1.0s xuống 0.5s
+MIN_SILENCE_DURATION = 1.0    # Tăng từ 0.5s lên 1.0s để tránh cắt câu
 MIN_AMPLITUDE_THRESHOLD = 1000  # Thêm ngưỡng amplitude mới
 # Thêm ngưỡng silence detection:
 SILENCE_RMS_THRESHOLD = 300   # Ngưỡng RMS để coi là silence
@@ -71,7 +71,7 @@ MIN_API_CALL_DELAY = 1.0      # Delay tối thiểu giữa các lần gọi API 
 GOOGLE_SPEECH_LANGUAGE = "vi-VN"  # Tiếng Việt
 GOOGLE_SPEECH_TIMEOUT = 5         # Timeout 5 giây
 GOOGLE_SPEECH_PHRASE_TIMEOUT = 1  # Timeout giữa các từ
-GOOGLE_SPEECH_NON_SPEAKING_DURATION = 0.5  # Thời gian im lặng để kết thúc
+GOOGLE_SPEECH_NON_SPEAKING_DURATION = 1.0  # Thời gian im lặng để kết thúc (tăng lên 1s)
 
 # ====== Flask + SocketIO ======
 app = Flask(__name__)
@@ -364,7 +364,7 @@ def asr_worker():
             # Điều kiện xử lý: silence đủ lâu HOẶC đạt max duration
             should_process = (
                 is_recording and (
-                    silence_duration >= MIN_SILENCE_DURATION or  # Silence đủ lâu
+                    silence_duration >= MIN_SILENCE_DURATION or  # Silence đủ lâu (1.0s)
                     current_recording_duration >= MAX_RECORDING_DURATION  # Đạt max duration
                 )
             )
@@ -383,7 +383,7 @@ def asr_worker():
             
             if should_process:
                 if silence_duration >= MIN_SILENCE_DURATION:
-                    print(f"🎯 BẮT ĐẦU XỬ LÝ AUDIO: silence={silence_duration:.1f}s")
+                    print(f"🎯 BẮT ĐẦU XỬ LÝ AUDIO: silence={silence_duration:.1f}s (ngưỡng: {MIN_SILENCE_DURATION}s)")
                 else:
                     print(f"🎯 BẮT ĐẦU XỬ LÝ AUDIO: đạt max duration={current_recording_duration:.1f}s")
                 
@@ -759,7 +759,7 @@ if __name__ == "__main__":
     print("=" * 50)
     print("🆕 CẢI TIẾN SPEECH DETECTION:")
     print(f"   • MIN_SPEECH_RMS: {MIN_SPEECH_RMS} (giảm từ 500)")
-    print(f"   • MIN_SILENCE_DURATION: {MIN_SILENCE_DURATION}s (giảm từ 1.0s)")
+    print(f"   • MIN_SILENCE_DURATION: {MIN_SILENCE_DURATION}s (tăng từ 0.5s lên 1.0s)")
     print(f"   • MIN_AMPLITUDE_THRESHOLD: {MIN_AMPLITUDE_THRESHOLD}")
     print(f"   • SILENCE_RMS_THRESHOLD: {SILENCE_RMS_THRESHOLD}")
     print(f"   • SILENCE_AMPLITUDE_THRESHOLD: {SILENCE_AMPLITUDE_THRESHOLD}")
@@ -769,7 +769,7 @@ if __name__ == "__main__":
     print(f"   • Enhanced preprocessing: Noise gate + Speech boost")
     print(f"   • Multiple detection conditions: RMS + Amplitude + Sample strength")
     print(f"   • Improved silence detection: Rõ ràng phân biệt speech/silence")
-    print(f"   • Auto-send: Gửi ngay khi đạt {MAX_RECORDING_DURATION}s hoặc silence {MIN_SILENCE_DURATION}s")
+    print(f"   • Auto-send: Gửi ngay khi đạt {MAX_RECORDING_DURATION}s hoặc silence {MIN_SILENCE_DURATION}s (tăng lên 1s để tránh cắt câu)")
     print(f"   • Anti-spam: Delay {MIN_API_CALL_DELAY}s giữa các lần gọi API")
     print("=" * 50)
     print("🔧 STABILITY IMPROVEMENTS:")
