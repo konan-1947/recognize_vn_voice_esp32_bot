@@ -1,0 +1,14 @@
+# Audio Processing Dependencies
+noisereduce>=2.0.1
+scipy>=1.9.0
+numpy>=1.21.0
+
+# Speech Recognition
+SpeechRecognition>=3.10.0
+
+# Web Framework
+Flask>=2.3.0
+Flask-SocketIO>=5.3.0
+
+# Additional Dependencies
+python-socketio>=5.8.0

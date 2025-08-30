@@ -1,0 +1,178 @@
+# Arduino IDE generated files
+*.hex
+*.elf
+*.bin
+*.map
+*.eep
+*.lss
+*.sym
+*.tmp
+*.log
+*.o
+*.d
+*.a
+*.ar
+*.su
+*.nm
+*.size
+*.dis
+
+# Arduino IDE build folders
+build/
+build-*/
+
+# Arduino IDE temporary files
+*.ino.bak
+*.ino.hex
+*.ino.elf
+*.ino.bin
+*.ino.map
+*.ino.eep
+*.ino.lss
+*.ino.sym
+*.ino.tmp
+*.ino.log
+*.ino.o
+*.ino.d
+*.ino.a
+*.ino.ar
+*.ino.su
+*.ino.nm
+*.ino.size
+*.ino.dis
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python server specific
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Audio files and recordings
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.pcm
+*.raw
+server/test_recordings/
+server/transcripts/
+
+# Logs
+*.log
+logs/
+log/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Git repositories (nested)
+server/.git/ 
