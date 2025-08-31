@@ -62,6 +62,12 @@ void handleCommand() {
     if (command == "BLINK3") {
       Serial.println("💡 Thực hiện bấm nhấp LED 3 lần!");
       blinkLED(3);
+    } else if (command == "LED_GREEN_ON") {
+      Serial.println("🟢 Bật đèn xanh liên tục!");
+      digitalWrite(LED_BUILTIN, HIGH);  // Bật đèn và giữ sáng
+    } else if (command == "LED_GREEN_OFF") {
+      Serial.println("⚫ Tắt đèn xanh!");
+      digitalWrite(LED_BUILTIN, LOW);   // Tắt đèn
     } else {
       Serial.println("Lệnh không hợp lệ: " + command);
     }
@@ -126,6 +132,7 @@ void setup() {
                 SAMPLE_RATE, FRAME_MS, SAMPLES_PER_FR);
   Serial.printf("Kết nối tới server: %s:%d\n", SERVER_IP, SERVER_PORT);
   Serial.printf("Lắng nghe lệnh trên port: %d\n", COMMAND_PORT);
+  Serial.println("Lệnh hỗ trợ: BLINK3, LED_GREEN_ON, LED_GREEN_OFF");
   
   // Test LED
   Serial.println("💡 Test LED...");

@@ -165,7 +165,7 @@
         </div>
         
         <div class="model-info" style="background: rgba(255, 165, 0, 0.1); border: 1px solid #FFA500;">
-            <strong>🎯 Wake Word:</strong> "hello hello" -> Bấm nhấp LED 3 lần
+            <strong>🎯 Wake Word:</strong> "hello hello" -> Bật đèn xanh và nghe câu hỏi
         </div>
         
         <div class="status">
@@ -238,6 +238,25 @@
             document.body.style.animation = "flash 0.5s 3";
             setTimeout(() => {
                 document.body.style.animation = "";
+            }, 1500);
+            
+            div.scrollTop = div.scrollHeight;
+        });
+        
+        // Nhận question captured events
+        socket.on("question_captured", function(msg) {
+            console.log("Question captured:", msg);
+            
+            // Hiện thị thông báo câu hỏi đã được ghi lại
+            let div = document.getElementById("final");
+            div.innerHTML += `<div class="word" style="background: #00FF00; color: #000; font-weight: bold; animation: blink 1s infinite;">❓ QUESTION: ${msg.text}</div>`;
+            
+            // Tạo hiệu ứng xanh
+            document.body.style.animation = "flash 0.5s 3";
+            document.body.style.setProperty('--flash-color', 'rgba(0, 255, 0, 0.3)');
+            setTimeout(() => {
+                document.body.style.animation = "";
+                document.body.style.removeProperty('--flash-color');
             }, 1500);
             
             div.scrollTop = div.scrollHeight;

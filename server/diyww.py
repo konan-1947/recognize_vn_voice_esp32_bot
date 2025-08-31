@@ -38,6 +38,12 @@ q_audio = deque(maxlen=1000) # Changed from queue.Queue() to deque(maxlen=1000)
 WAKE_WORD = "hello hello"  # Wake word để kích hoạt LED
 esp32_address = None  # Địa chỉ IP của ESP32, sẽ được cập nhật khi nhận UDP
 
+# ==================================================
+# MỚI: Biến trạng thái để nghe câu hỏi
+# ==================================================
+is_listening_for_question = False
+question_logger = None  # Sẽ khởi tạo trong __main__
+
 # Global flag để dừng threads
 shutdown_event = threading.Event()
 
@@ -240,6 +246,11 @@ def udp_listener():
 
 def asr_worker():
     """Thread xử lý ASR với Google Speech Recognition + Circular Buffer"""
+    # ==================================================
+    # MỚI: Khai báo sử dụng biến global
+    # ==================================================
+    global is_listening_for_question, question_logger
+    
     print("🎤 ASR Worker đã sẵn sàng xử lý audio với Google Speech Recognition + Circular Buffer...")
     print(f"📊 Cấu hình: circular_buffer_size={CIRCULAR_BUFFER_SIZE}, lookback_size={LOOKBACK_SIZE}")
     print(f"🌐 Ngôn ngữ: {GOOGLE_SPEECH_LANGUAGE}")
@@ -484,42 +495,76 @@ def asr_worker():
                                 transcription = transcribe_audio_with_google(wav_file, GOOGLE_SPEECH_LANGUAGE)
                                 
                                 if transcription:
-                                    # Ghi transcript ra file log
-                                    transcript_logger.log_transcript_simple(transcription)
+                                    # ==================================================
+                                    # THAY ĐỔI: Logic xử lý dựa trên trạng thái
+                                    # ==================================================
                                     
-                                    # Kiểm tra wake word và gửi lệnh LED nếu cần
-                                    if check_wake_word(transcription):
-                                        # Gửi lệnh nhấp nháy LED 3 lần
-                                        send_led_command("BLINK3")
+                                    if is_listening_for_question:
+                                        # --- CHẾ ĐỘ NGHE CÂU HỊI ---
+                                        print(f"❓ Câu hỏi đã nhận dạng: {transcription}")
                                         
-                                        # Gửi thông báo wake word đến web interface
-                                        socketio.emit("wake_word", {
+                                        # Ghi câu hỏi vào file log riêng
+                                        question_logger.log_transcript_simple(transcription)
+                                        
+                                        # Gửi lệnh tắt đèn xanh
+                                        send_led_command("LED_GREEN_OFF")
+                                        
+                                        # Gửi lên web UI (tùy chọn)
+                                        socketio.emit("question_captured", {
                                             "text": transcription,
-                                            "wake_word": WAKE_WORD,
+                                            "timestamp": timestamp
+                                        })
+                                        
+                                        # Quay lại trạng thái mặc định
+                                        is_listening_for_question = False
+                                        print("✅ Đã ghi nhận câu hỏi, quay lại chế độ chờ wake word.")
+
+                                    else:
+                                        # --- CHẾ ĐỘ MẶC ĐịNH ---
+                                        # Ghi transcript như bình thường
+                                        transcript_logger.log_transcript_simple(transcription)
+                                        
+                                        # Kiểm tra wake word
+                                        if check_wake_word(transcription):
+                                            # Kích hoạt chế độ nghe câu hỏi
+                                            is_listening_for_question = True
+                                            print("🎯 Wake word detected! Chuyển sang chế độ nghe câu hỏi...")
+                                            
+                                            # Gửi lệnh BẬT đèn xanh liên tục
+                                            send_led_command("LED_GREEN_ON")
+                                            
+                                            # Gửi thông báo wake word đến web interface
+                                            socketio.emit("wake_word", {
+                                                "text": transcription,
+                                                "wake_word": WAKE_WORD,
+                                                "timestamp": timestamp,
+                                                "seq": seq
+                                            })
+                                        
+                                        # Gửi kết quả final như bình thường
+                                        socketio.emit("final", {
+                                            "text": transcription,
                                             "timestamp": timestamp,
                                             "seq": seq
                                         })
-                                    
-                                    # Gửi kết quả cuối cùng
-                                    socketio.emit("final", {
-                                        "text": transcription,
-                                        "timestamp": timestamp,
-                                        "seq": seq
-                                    })
-                                    print(f"🎯 Final (Google Speech): {transcription}")
-                                    
-                                    # XÓA BUFFER sau khi xử lý thành công để tránh lặp lại
+                                        print(f"🎯 Final (Google Speech): {transcription}")
+
+                                    # XÓA BUFFER sau khi xử lý thành công
                                     print("🧹 Đang xóa buffer để tránh duplicate...")
                                     circular_buffer = bytearray(CIRCULAR_BUFFER_SIZE)
                                     buffer_head = 0
                                     buffer_tail = 0
-                                    
-                                    # Reset recording state
                                     is_recording = False
                                     consecutive_silence_count = 0
                                 else:
                                     print(f"🔇 Google Speech không nhận dạng được text")
                                     
+                                    # Nếu đang nghe câu hỏi mà không nhận dạng được, có thể tắt đèn và reset
+                                    if is_listening_for_question:
+                                        print("🔇 Không nhận dạng được câu hỏi, hủy chế độ nghe.")
+                                        send_led_command("LED_GREEN_OFF")
+                                        is_listening_for_question = False
+
                                     # XÓA BUFFER ngay cả khi không nhận diện được để tránh lặp lại
                                     print("🧹 Đang xóa buffer (không nhận diện được)...")
                                     circular_buffer = bytearray(CIRCULAR_BUFFER_SIZE)
@@ -572,6 +617,10 @@ def asr_worker():
                             
         except Exception as e:
             print(f"❌ Lỗi ASR worker: {e}")
+            # Reset trạng thái nếu có lỗi
+            if is_listening_for_question:
+                send_led_command("LED_GREEN_OFF")
+                is_listening_for_question = False
             is_recording = False
             consecutive_silence_count = 0
             continue
@@ -747,7 +796,7 @@ def create_templates():
         </div>
         
         <div class="model-info" style="background: rgba(255, 165, 0, 0.1); border: 1px solid #FFA500;">
-            <strong>🎯 Wake Word:</strong> "hello hello" -> Bấm nhấp LED 3 lần
+            <strong>🎯 Wake Word:</strong> "hello hello" -> Bật đèn xanh và nghe câu hỏi
         </div>
         
         <div class="status">
@@ -824,6 +873,25 @@ def create_templates():
             
             div.scrollTop = div.scrollHeight;
         });
+        
+        // Nhận question captured events
+        socket.on("question_captured", function(msg) {
+            console.log("Question captured:", msg);
+            
+            // Hiện thị thông báo câu hỏi đã được ghi lại
+            let div = document.getElementById("final");
+            div.innerHTML += `<div class="word" style="background: #00FF00; color: #000; font-weight: bold; animation: blink 1s infinite;">❓ QUESTION: ${msg.text}</div>`;
+            
+            // Tạo hiệu ứng xanh
+            document.body.style.animation = "flash 0.5s 3";
+            document.body.style.setProperty('--flash-color', 'rgba(0, 255, 0, 0.3)');
+            setTimeout(() => {
+                document.body.style.animation = "";
+                document.body.style.removeProperty('--flash-color');
+            }, 1500);
+            
+            div.scrollTop = div.scrollHeight;
+        });
 
         // Cập nhật stats
         setInterval(function() {
@@ -849,7 +917,7 @@ if __name__ == "__main__":
     print(f"📺 Command server: {HOST}:{COMMAND_PORT}")
     print(f"🌐 Speech engine: Google Speech Recognition + Circular Buffer")
     print(f"📊 Buffer: {CIRCULAR_BUFFER_SIZE//1000}KB, Lookback: {LOOKBACK_SIZE//1000}KB")
-    print(f"🎯 Wake Word: '{WAKE_WORD}' -> Bấm nhấp LED 3 lần")
+    print(f"🎯 Wake Word: '{WAKE_WORD}' -> Bật đèn xanh và nghe câu hỏi")
     print("=" * 50)
     print("🏗️ MODULAR ARCHITECTURE (audio_utils):")
     print(f"   • audio_processing: Improved audio preprocessing")
@@ -889,6 +957,15 @@ if __name__ == "__main__":
     print(f"   • Fresh start: Mỗi lần xử lý bắt đầu với buffer trống")
     print(f"   • All cases: Xóa buffer cho mọi trường hợp (success/fail)")
     print("=" * 50)
+    print("🔍 NEW FEATURE: QUESTION LISTENING MODE:")
+    print(f"   • Wake word detection: '{WAKE_WORD}' -> Switch to question mode")
+    print(f"   • Green LED ON: ESP32 LED turns on continuously when listening for question")
+    print(f"   • Question capture: Next complete sentence is saved to questions.log")
+    print(f"   • Green LED OFF: LED turns off after question is captured")
+    print(f"   • Auto-reset: Returns to wake word detection mode automatically")
+    print(f"   • ESP32 commands: LED_GREEN_ON, LED_GREEN_OFF (port {COMMAND_PORT})")
+    print(f"   • Question log: transcripts/questions.log")
+    print("=" * 50)
     
     # Kiểm tra dependencies
     if not check_dependencies():
@@ -898,6 +975,12 @@ if __name__ == "__main__":
     # Khởi tạo TranscriptLogger
     transcript_logger = TranscriptLogger(output_dir="transcripts", filename="live_transcript.txt")
     print(f"📝 Transcript Logger: {transcript_logger.get_filepath()}")
+    
+    # ==================================================
+    # MỚI: Khởi tạo Logger cho câu hỏi
+    # ==================================================
+    question_logger = TranscriptLogger(output_dir="transcripts", filename="questions.log")
+    print(f"❓ Question Logger: {question_logger.get_filepath()}")
     
     # Tạo templates
     create_templates()
