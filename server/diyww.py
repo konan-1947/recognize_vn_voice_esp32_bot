@@ -24,10 +24,10 @@ from audio_utils import (
 
 def signal_handler(signum, frame):
     """Signal handler để graceful shutdown"""
-    print(f"\n🛑 Nhận signal {signum}, đang dừng server...")
+    print(f"\n[SHUTDOWN] Nhận signal {signum}, đang dừng server...")
     shutdown_event.set()
     time.sleep(2)  # Đợi threads dừng
-    print("✅ Server đã dừng an toàn")
+    print("[SHUTDOWN] Server đã dừng an toàn")
     sys.exit(0)
 
 def main():
@@ -39,16 +39,16 @@ def main():
     
     # Kiểm tra dependencies
     if not check_audio_dependencies():
-        print("❌ Thiếu dependencies, vui lòng cài đặt trước")
+        print("[ERROR] Thiếu dependencies, vui lòng cài đặt trước")
         exit(1)
     
     # Khởi tạo global loggers
     import audio_utils.server_config as config
     config.transcript_logger = TranscriptLogger(output_dir="transcripts", filename="live_transcript.txt")
-    print(f"📝 Transcript Logger: {config.transcript_logger.get_filepath()}")
+    print(f"[TRANSCRIPT] Logger: {config.transcript_logger.get_filepath()}")
     
     config.question_logger = TranscriptLogger(output_dir="transcripts", filename="questions.log")
-    print(f"❓ Question Logger: {config.question_logger.get_filepath()}")
+    print(f"[QUESTION] Logger: {config.question_logger.get_filepath()}")
     
     # Tạo Flask app và SocketIO
     app, socketio = create_app()
@@ -60,35 +60,35 @@ def main():
     udp_thread = threading.Thread(target=udp_listener, daemon=True)
     asr_thread = threading.Thread(target=lambda: asr_worker(socketio), daemon=True)  # Pass socketio to asr_worker
     
-    print("🔄 Đang khởi động UDP Listener thread...")
+    print("[UDP] Đang khởi động UDP Listener thread...")
     udp_thread.start()
-    print("✅ UDP Listener thread đã khởi động")
+    print("[UDP] UDP Listener thread đã khởi động")
     
-    print("🔄 Đang khởi động ASR Worker thread...")
+    print("[ASR] Đang khởi động ASR Worker thread...")
     asr_thread.start()
-    print("✅ ASR Worker thread đã khởi động với Circular Buffer")
+    print("[ASR] ASR Worker thread đã khởi động với Circular Buffer")
     
     # Kiểm tra threads có alive không
     time.sleep(2)
     if asr_thread.is_alive():
-        print("✅ ASR Worker thread đang chạy bình thường")
+        print("[ASR] ASR Worker thread đang chạy bình thường")
     else:
-        print("❌ ASR Worker thread đã dừng!")
+        print("[ERROR] ASR Worker thread đã dừng!")
     
     # Chạy Flask-SocketIO server
-    print("🚀 Khởi động Flask-SocketIO server...")
+    print("[FLASK] Khởi động Flask-SocketIO server...")
     try:
         socketio.run(app, host="0.0.0.0", port=FLASK_PORT, debug=False)
     except KeyboardInterrupt:
-        print("\n🛑 Nhận Ctrl+C, đang dừng server...")
+        print("\n[SHUTDOWN] Nhận Ctrl+C, đang dừng server...")
         shutdown_event.set()
         time.sleep(2)
-        print("✅ Server đã dừng an toàn")
+        print("[SHUTDOWN] Server đã dừng an toàn")
     except Exception as e:
-        print(f"❌ Lỗi Flask server: {e}")
+        print(f"[ERROR] Lỗi Flask server: {e}")
         shutdown_event.set()
         time.sleep(2)
-        print("✅ Server đã dừng an toàn")
+        print("[SHUTDOWN] Server đã dừng an toàn")
 
 if __name__ == "__main__":
     main()

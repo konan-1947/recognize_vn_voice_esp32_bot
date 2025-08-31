@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Wake Word Handler - Xử lý wake word detection và state management
+Bao gồm tích hợp Gemini AI để trả lời câu hỏi tự động
 """
 
 import audio_utils.server_config as config
 from .udp_handler import send_led_command
+from .gemini_api import ask_gemini
 
 def check_wake_word(text):
     """Kiểm tra text có chứa wake word không"""
@@ -41,25 +43,41 @@ def process_wake_word_detection(transcription, timestamp, seq, socketio):
     })
 
 def process_question_capture(transcription, timestamp, socketio):
-    """Xử lý khi capture được câu hỏi"""
+    """Xử lý khi capture được câu hỏi và tạo AI response"""
     print(f"❓ Câu hỏi đã nhận dạng: {transcription}")
-    
-    # Ghi câu hỏi vào file log riêng
-    if config.question_logger:
-        config.question_logger.log_transcript_simple(transcription)
     
     # Gửi lệnh tắt đèn xanh
     send_led_command("LED_GREEN_OFF")
     
-    # Gửi lên web UI
+    # Tạo AI response bằng Gemini
+    print("🤖 Đang tạo AI response...")
+    ai_response = ask_gemini(transcription)
+    
+    # Chuẩn bị log entry với cả câu hỏi và câu trả lời
+    if ai_response:
+        # Tạo log entry bao gồm cả câu hỏi và AI response
+        log_entry = f"[{timestamp}]\n❓ Câu hỏi: {transcription}\n🤖 AI trả lời: {ai_response}\n{'-' * 80}"
+        print(f"✅ AI response: {ai_response}")
+    else:
+        # Nếu không có AI response, chỉ log câu hỏi
+        log_entry = f"[{timestamp}]\n❓ Câu hỏi: {transcription}\n❌ AI response: Không thể tạo phản hồi\n{'-' * 80}"
+        print("❌ Không thể tạo AI response")
+    
+    # Ghi vào file log câu hỏi (bao gồm AI response)
+    if config.question_logger:
+        config.question_logger.log_transcript_simple(log_entry)
+    
+    # Gửi lên web UI bao gồm cả câu hỏi và AI response
     socketio.emit("question_captured", {
         "text": transcription,
-        "timestamp": timestamp
+        "ai_response": ai_response,
+        "timestamp": timestamp,
+        "has_ai_response": ai_response is not None
     })
     
     # Quay lại trạng thái mặc định
     config.is_listening_for_question = False
-    print("✅ Đã ghi nhận câu hỏi, quay lại chế độ chờ wake word.")
+    print("✅ Đã ghi nhận câu hỏi và AI response, quay lại chế độ chờ wake word.")
 
 def reset_question_mode():
     """Reset về chế độ mặc định nếu có lỗi"""

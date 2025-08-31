@@ -16,7 +16,7 @@ from .server_config import (
 
 def create_app():
     """Tạo Flask application"""
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='../templates')
     socketio = SocketIO(app, cors_allowed_origins="*")
     
     @app.route('/')
@@ -68,4 +68,4 @@ def create_app():
 def create_templates():
     """Tạo thư mục templates nếu chưa có - HTML template đã được tách riêng"""
     os.makedirs("templates", exist_ok=True)
-    print("✅ Templates directory đã sẵn sàng")
+    print("[TEMPLATE] Templates directory đã sẵn sàng")

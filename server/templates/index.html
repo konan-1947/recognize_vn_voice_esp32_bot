@@ -10,7 +10,7 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background: #f5f5f5;
+            background: white;
             color: #333;
         }
         
@@ -51,6 +51,7 @@
             border-radius: 8px;
             padding: 20px;
             overflow-y: auto;
+            height: 50vh;
         }
         
         .transcript-panel h3 {
@@ -199,42 +200,37 @@
             
             div.scrollTop = div.scrollHeight;
         });
-        
+
         // Wake word detection
-        socket.on("wake_word", function(msg) {
-            console.log("Wake word detected:", msg);
-            
-            // Update status
-            let statusDiv = document.getElementById("wake-word-status");
-            statusDiv.className = "wake-word-status listening";
-            statusDiv.innerHTML = "🎯 Listening for question...";
-            
-            // Add to transcript log
-            let logDiv = document.getElementById("transcript-log");
-            let timestamp = new Date(msg.timestamp).toLocaleTimeString();
-            logDiv.innerHTML += `<div class="word wake-word">[${timestamp}] 🎯 WAKE WORD: ${msg.text}</div>`;
-            logDiv.scrollTop = logDiv.scrollHeight;
+        socket.on("wake_word_detected", function(msg) {
+            document.getElementById("wake-word-status").className = "wake-word-status listening";
+            document.getElementById("wake-word-status").innerHTML = "🎙️ Listening for question...";
         });
-        
+
         // Question captured
         socket.on("question_captured", function(msg) {
-            console.log("Question captured:", msg);
-            
             questionCount++;
-            
-            // Reset status
-            let statusDiv = document.getElementById("wake-word-status");
-            statusDiv.className = "wake-word-status waiting";
-            statusDiv.innerHTML = "Waiting for \"hello hello\"";
-            
-            // Add to questions log
-            let questionsDiv = document.getElementById("questions-log");
+            let div = document.getElementById("questions-log");
             let timestamp = new Date(msg.timestamp).toLocaleTimeString();
-            questionsDiv.innerHTML += `<div class="word question">[${timestamp}] ${msg.text}</div>`;
-            questionsDiv.scrollTop = questionsDiv.scrollHeight;
             
-            // Update counter
+            div.innerHTML += `<div class="question">[${timestamp}] Q: ${msg.text}</div>`;
             document.getElementById("question-count").innerText = questionCount;
+            
+            // Reset wake word status
+            document.getElementById("wake-word-status").className = "wake-word-status waiting";
+            document.getElementById("wake-word-status").innerHTML = 'Waiting for "hello hello"';
+            
+            div.scrollTop = div.scrollHeight;
+        });
+
+        // AI response
+        socket.on("ai_response", function(msg) {
+            let div = document.getElementById("questions-log");
+            let timestamp = new Date(msg.timestamp).toLocaleTimeString();
+            
+            div.innerHTML += `<div class="word">[${timestamp}] A: ${msg.text}</div>`;
+            
+            div.scrollTop = div.scrollHeight;
         });
     </script>
 </body>

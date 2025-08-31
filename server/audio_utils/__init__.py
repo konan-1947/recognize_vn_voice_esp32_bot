@@ -11,6 +11,7 @@ from .udp_handler import send_led_command, udp_listener
 from .wake_word_handler import check_wake_word, process_wake_word_detection, process_question_capture, reset_question_mode
 from .asr_processor import asr_worker
 from .flask_server import create_app, create_templates
+from .gemini_api import ask_gemini, gemini_ask
 
 __all__ = [
     'audio_preprocessing_improved',
@@ -31,5 +32,7 @@ __all__ = [
     # ASR processor
     'asr_worker',
     # Flask server
-    'create_app', 'create_templates'
+    'create_app', 'create_templates',
+    # Gemini AI integration
+    'ask_gemini', 'gemini_ask'
 ] 
