@@ -8,6 +8,7 @@ Bao gồm tích hợp Gemini AI để trả lời câu hỏi tự động
 import audio_utils.server_config as config
 from .udp_handler import send_led_command
 from .gemini_api import ask_gemini
+from .tts_utils import text_to_speech
 
 def check_wake_word(text):
     """Kiểm tra text có chứa wake word không"""
@@ -66,6 +67,15 @@ def process_question_capture(transcription, timestamp, socketio):
     # Ghi vào file log câu hỏi (bao gồm AI response)
     if config.question_logger:
         config.question_logger.log_transcript_simple(log_entry)
+    
+    # Đọc to câu trả lời AI nếu có
+    if ai_response:
+        try:
+            print(f"🔊 Đang đọc to câu trả lời AI...")
+            text_to_speech(ai_response, language='vi', auto_play=True)
+            print(f"✅ Đã đọc to câu trả lời AI")
+        except Exception as e:
+            print(f"⚠️ Lỗi TTS: {e}")
     
     # Gửi lên web UI bao gồm cả câu hỏi và AI response
     socketio.emit("question_captured", {
