@@ -176,3 +176,5 @@ dmypy.json
 
 # Git repositories (nested)
 server/.git/ 
+
+.qoder/

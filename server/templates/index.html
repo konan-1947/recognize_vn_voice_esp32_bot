@@ -3,269 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎙️ Live Speech Recognition (Circular Buffer)</title>
+    <title>Voice Recognition System</title>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            min-height: 100vh;
+            background: #f5f5f5;
+            color: #333;
         }
         
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: grid;
+            grid-template-columns: 1fr 300px 1fr;
+            grid-template-rows: auto 50vh;
+            gap: 20px;
+            height: 80vh;
         }
         
         h1 {
+            grid-column: 1 / -1;
             text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin: 0 0 20px 0;
+            font-size: 1.8em;
+            color: #333;
         }
         
-        .status {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 10px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .transcript-container {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            min-height: 300px;
-        }
-        
-        #partial {
-            color: #ffd700;
-            font-style: italic;
-            font-size: 1.2em;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(255, 215, 0, 0.1);
+        .status-panel {
+            grid-column: 2;
+            grid-row: 2;
+            background: white;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            border-left: 4px solid #ffd700;
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         
-        #final {
-            line-height: 1.6;
+        .transcript-panel {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .transcript-panel h3 {
+            margin: 0 0 15px 0;
+            color: #555;
             font-size: 1.1em;
+        }
+        
+        .log-panel {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        .questions-panel {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        
+        .connection-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .wake-word-status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        
+        .listening {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .waiting {
+            background: #e2e3e5;
+            color: #383d41;
+            border: 1px solid #c6c8ca;
         }
         
         .word {
             display: inline-block;
-            margin: 2px 4px;
-            padding: 4px 8px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            transition: all 0.3s ease;
+            margin: 2px;
+            padding: 3px 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            font-size: 0.9em;
         }
         
-        .word:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
+        .wake-word {
+            background: #ffc107;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .question {
+            background: #28a745;
+            color: white;
+            font-weight: bold;
         }
         
         .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
             margin-top: 20px;
-        }
-        
-        .stat-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #ffd700;
-        }
-        
-        .stat-label {
             font-size: 0.9em;
-            opacity: 0.8;
         }
         
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        
-        .connected {
-            background: #4CAF50;
-            color: white;
-        }
-        
-        .disconnected {
-            background: #f44336;
-            color: white;
-        }
-        
-        .model-info {
-            background: rgba(0, 255, 0, 0.1);
-            border: 1px solid #4CAF50;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 10px 0;
-            text-align: center;
-        }
-        
-        .performance-info {
-            background: rgba(0, 150, 255, 0.1);
-            border: 1px solid #0096FF;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 10px 0;
-            text-align: center;
-        }
-        
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            25%, 75% { opacity: 0.5; }
-        }
-        
-        @keyframes flash {
-            0%, 100% { background: inherit; }
-            50% { background: rgba(255, 165, 0, 0.3); }
+        .stats div {
+            margin: 5px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎙️ Live Speech Recognition</h1>
+        <h1>Voice Recognition System</h1>
         
-        <div class="model-info">
-            <strong>🤖 Engine:</strong> Google Speech Recognition + Circular Buffer - Không bị cụt câu
-        </div>
-        
-        <div class="performance-info">
-            <strong>⚡ Features:</strong> Lookback 1s, 4s buffer, Real-time processing
-        </div>
-        
-        <div class="model-info" style="background: rgba(255, 165, 0, 0.1); border: 1px solid #FFA500;">
-            <strong>🎯 Wake Word:</strong> "hello hello" -> Bật đèn xanh và nghe câu hỏi
-        </div>
-        
-        <div class="status">
+        <!-- Status Panel (Center) -->
+        <div class="status-panel">
             <div id="connection-status" class="connection-status disconnected">
-                🔴 Đang kết nối...
+                🔴 Disconnected
+            </div>
+            
+            <div id="wake-word-status" class="wake-word-status waiting">
+                Waiting for "hello hello"
+            </div>
+            
+            <div class="stats">
+                <div>Transcripts: <span id="final-count">0</span></div>
+                <div>Questions: <span id="question-count">0</span></div>
             </div>
         </div>
         
-        <div class="transcript-container">
-            <h3>📝 Transcript Real-time:</h3>
-            <div id="partial"></div>
-            <div id="final"></div>
+        <!-- Transcript Log (Left) -->
+        <div class="transcript-panel log-panel">
+            <h3>📝 Transcript Log</h3>
+            <div id="transcript-log"></div>
         </div>
         
-        <div class="stats">
-            <div class="stat-item">
-                <div class="stat-value" id="packets-received">0</div>
-                <div class="stat-label">Packets nhận</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="final-count">0</div>
-                <div class="stat-label">Final results</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="speech-engine">Circular Buffer</div>
-                <div class="stat-label">Engine</div>
-            </div>
+        <!-- Questions (Right) -->
+        <div class="transcript-panel questions-panel">
+            <h3>❓ Questions</h3>
+            <div id="questions-log"></div>
         </div>
     </div>
 
     <script>
         var socket = io();
         var finalCount = 0;
-        var packetsReceived = 0;
+        var questionCount = 0;
 
-        // Kết nối Socket.IO
+        // Connection status
         socket.on("connect", function() {
             document.getElementById("connection-status").className = "connection-status connected";
-            document.getElementById("connection-status").innerHTML = "🟢 Đã kết nối";
+            document.getElementById("connection-status").innerHTML = "🟢 Connected";
         });
 
         socket.on("disconnect", function() {
             document.getElementById("connection-status").className = "connection-status disconnected";
-            document.getElementById("connection-status").innerHTML = "🔴 Mất kết nối";
+            document.getElementById("connection-status").innerHTML = "🔴 Disconnected";
         });
 
-        // Nhận final results từ Google Speech
+        // Final transcripts
         socket.on("final", function(msg) {
             finalCount++;
-            let div = document.getElementById("final");
+            let div = document.getElementById("transcript-log");
             let timestamp = new Date(msg.timestamp).toLocaleTimeString();
             
-            div.innerHTML += `<div class="word">${msg.text}</div>`;
-            document.getElementById("partial").innerHTML = "";
+            div.innerHTML += `<div class="word">[${timestamp}] ${msg.text}</div>`;
             document.getElementById("final-count").innerText = finalCount;
             
-            // Auto-scroll xuống dưới
             div.scrollTop = div.scrollHeight;
         });
         
-        // Nhận wake word events
+        // Wake word detection
         socket.on("wake_word", function(msg) {
             console.log("Wake word detected:", msg);
             
-            // Hiện thị thông báo wake word
-            let div = document.getElementById("final");
-            div.innerHTML += `<div class="word" style="background: #FFA500; color: #000; font-weight: bold; animation: blink 1s infinite;">🎯 WAKE WORD: ${msg.text}</div>`;
+            // Update status
+            let statusDiv = document.getElementById("wake-word-status");
+            statusDiv.className = "wake-word-status listening";
+            statusDiv.innerHTML = "🎯 Listening for question...";
             
-            // Tạo hiệu ứng nhấp nháy
-            document.body.style.animation = "flash 0.5s 3";
-            setTimeout(() => {
-                document.body.style.animation = "";
-            }, 1500);
-            
-            div.scrollTop = div.scrollHeight;
+            // Add to transcript log
+            let logDiv = document.getElementById("transcript-log");
+            let timestamp = new Date(msg.timestamp).toLocaleTimeString();
+            logDiv.innerHTML += `<div class="word wake-word">[${timestamp}] 🎯 WAKE WORD: ${msg.text}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
         });
         
-        // Nhận question captured events
+        // Question captured
         socket.on("question_captured", function(msg) {
             console.log("Question captured:", msg);
             
-            // Hiện thị thông báo câu hỏi đã được ghi lại
-            let div = document.getElementById("final");
-            div.innerHTML += `<div class="word" style="background: #00FF00; color: #000; font-weight: bold; animation: blink 1s infinite;">❓ QUESTION: ${msg.text}</div>`;
+            questionCount++;
             
-            // Tạo hiệu ứng xanh
-            document.body.style.animation = "flash 0.5s 3";
-            document.body.style.setProperty('--flash-color', 'rgba(0, 255, 0, 0.3)');
-            setTimeout(() => {
-                document.body.style.animation = "";
-                document.body.style.removeProperty('--flash-color');
-            }, 1500);
+            // Reset status
+            let statusDiv = document.getElementById("wake-word-status");
+            statusDiv.className = "wake-word-status waiting";
+            statusDiv.innerHTML = "Waiting for \"hello hello\"";
             
-            div.scrollTop = div.scrollHeight;
+            // Add to questions log
+            let questionsDiv = document.getElementById("questions-log");
+            let timestamp = new Date(msg.timestamp).toLocaleTimeString();
+            questionsDiv.innerHTML += `<div class="word question">[${timestamp}] ${msg.text}</div>`;
+            questionsDiv.scrollTop = questionsDiv.scrollHeight;
+            
+            // Update counter
+            document.getElementById("question-count").innerText = questionCount;
         });
-
-        // Cập nhật stats
-        setInterval(function() {
-            // Có thể thêm cập nhật stats real-time ở đây
-        }, 1000);
     </script>
 </body>
 </html>
