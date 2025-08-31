@@ -9,7 +9,12 @@
 #define BYTES_PER_SMP   2   // int16_t
 #define FRAME_BYTES     (SAMPLES_PER_FR * BYTES_PER_SMP) // 640
 
+// ---- LED Control ----
+#define LED_BUILTIN 2  // Built-in LED trên GPIO 2
+#define COMMAND_PORT 5006  // Port để nhận lệnh từ server
+
 WiFiUDP udp;
+WiFiUDP cmdUdp;  // UDP socket riêng để nhận lệnh
 uint32_t seq = 0;
 uint32_t t0ms = 0;
 
@@ -27,6 +32,40 @@ static inline void write_len24(PacketHeader& h, uint32_t n) {
   h.len_b2 = (n >> 16) & 0xFF;
   h.len_b1 = (n >> 8)  & 0xFF;
   h.len_b0 = (n)       & 0xFF;
+}
+
+void blinkLED(int times) {
+  /**
+   * Bấm nhấp LED built-in một số lần nhất định
+   */
+  for (int i = 0; i < times; i++) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(200);  // Sáng 200ms
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(200);  // Tắt 200ms
+  }
+}
+
+void handleCommand() {
+  /**
+   * Xử lý lệnh nhận từ server
+   */
+  int packetSize = cmdUdp.parsePacket();
+  if (packetSize > 0) {
+    char commandBuffer[32];
+    int len = cmdUdp.read(commandBuffer, sizeof(commandBuffer) - 1);
+    commandBuffer[len] = '\0';  // Null-terminate string
+    
+    String command = String(commandBuffer);
+    Serial.println("Nhận lệnh: " + command);
+    
+    if (command == "BLINK3") {
+      Serial.println("💡 Thực hiện bấm nhấp LED 3 lần!");
+      blinkLED(3);
+    } else {
+      Serial.println("Lệnh không hợp lệ: " + command);
+    }
+  }
 }
 
 void setupI2S() {
@@ -58,7 +97,11 @@ void setupI2S() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("ESP32 + INMP441 UDP Audio Streaming");
+  Serial.println("ESP32 + INMP441 UDP Audio Streaming + LED Control");
+  
+  // Khởi tạo LED
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
   
   // Kết nối WiFi
   WiFi.mode(WIFI_STA);
@@ -71,17 +114,28 @@ void setup() {
   Serial.println("\nWiFi đã kết nối!");
   Serial.println("IP: " + WiFi.localIP().toString());
 
+  // Khởi tạo UDP sockets
   udp.begin(SERVER_PORT); // optional, để có thể recv reply
+  cmdUdp.begin(COMMAND_PORT); // Để nhận lệnh từ server
+  
   setupI2S();
   t0ms = millis();
   
-  Serial.println("Hệ thống đã sẵn sàng streaming âm thanh!");
+  Serial.println("Hệ thống đã sẵn sàng streaming âm thanh + LED control!");
   Serial.printf("Sample rate: %d Hz, Frame: %d ms, Samples/frame: %d\n", 
                 SAMPLE_RATE, FRAME_MS, SAMPLES_PER_FR);
   Serial.printf("Kết nối tới server: %s:%d\n", SERVER_IP, SERVER_PORT);
+  Serial.printf("Lắng nghe lệnh trên port: %d\n", COMMAND_PORT);
+  
+  // Test LED
+  Serial.println("💡 Test LED...");
+  blinkLED(2);
 }
 
 void loop() {
+  // Xử lý lệnh từ server (kiểm tra trước)
+  handleCommand();
+  
   // Đọc 32-bit từ I2S, chuyển về int16_t (lấy 16 bit có nghĩa ở giữa)
   int32_t raw32[SAMPLES_PER_FR];
   size_t bytesRead = 0;

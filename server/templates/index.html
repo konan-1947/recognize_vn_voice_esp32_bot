@@ -140,6 +140,16 @@
             margin: 10px 0;
             text-align: center;
         }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            25%, 75% { opacity: 0.5; }
+        }
+        
+        @keyframes flash {
+            0%, 100% { background: inherit; }
+            50% { background: rgba(255, 165, 0, 0.3); }
+        }
     </style>
 </head>
 <body>
@@ -152,6 +162,10 @@
         
         <div class="performance-info">
             <strong>⚡ Features:</strong> Lookback 1s, 4s buffer, Real-time processing
+        </div>
+        
+        <div class="model-info" style="background: rgba(255, 165, 0, 0.1); border: 1px solid #FFA500;">
+            <strong>🎯 Wake Word:</strong> "hello hello" -> Bấm nhấp LED 3 lần
         </div>
         
         <div class="status">
@@ -209,6 +223,23 @@
             document.getElementById("final-count").innerText = finalCount;
             
             // Auto-scroll xuống dưới
+            div.scrollTop = div.scrollHeight;
+        });
+        
+        // Nhận wake word events
+        socket.on("wake_word", function(msg) {
+            console.log("Wake word detected:", msg);
+            
+            // Hiện thị thông báo wake word
+            let div = document.getElementById("final");
+            div.innerHTML += `<div class="word" style="background: #FFA500; color: #000; font-weight: bold; animation: blink 1s infinite;">🎯 WAKE WORD: ${msg.text}</div>`;
+            
+            // Tạo hiệu ứng nhấp nháy
+            document.body.style.animation = "flash 0.5s 3";
+            setTimeout(() => {
+                document.body.style.animation = "";
+            }, 1500);
+            
             div.scrollTop = div.scrollHeight;
         });
 
