@@ -13,7 +13,6 @@ from .asr_processor import asr_worker
 from .flask_server import create_app, create_templates
 from .gemini_api import ask_gemini, gemini_ask
 from .tts_utils import text_to_audio_file, play_audio_file, text_to_speech
-from .mp3_streamer import MP3Streamer, stream_mp3_file, stream_mp3_file_async
 
 __all__ = [
     'audio_preprocessing_improved',
@@ -38,7 +37,5 @@ __all__ = [
     # Gemini AI integration
     'ask_gemini', 'gemini_ask',
     # TTS utils
-    'text_to_audio_file', 'play_audio_file', 'text_to_speech',
-    # MP3 Streaming
-    'MP3Streamer', 'stream_mp3_file', 'stream_mp3_file_async'
+    'text_to_audio_file', 'play_audio_file', 'text_to_speech'
 ] 
