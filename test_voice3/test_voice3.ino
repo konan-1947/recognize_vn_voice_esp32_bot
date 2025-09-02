@@ -21,7 +21,7 @@
 
 // ---- Audio Playback Configuration ----
 #define I2S_BCLK_PIN 26  // I2S Bit Clock pin
-#define I2S_LRC_PIN 27   // I2S Left/Right Clock pin  
+#define I2S_LRC_PIN 27   // I2S Left/Right Clock pin
 #define I2S_DOUT_PIN 25  // I2S Data Out pin
 #define TCP_PORT 8080    // Port cho TCP Server nhận file audio
 // *** SỬA LỖI: Chỉ định port I2S số 1 cho việc phát nhạc ***
@@ -41,6 +41,9 @@ AudioOutputI2S *out;
 WiFiServer server(TCP_PORT);
 bool playRequest = false;
 String filenameToPlay;  // Chỉ lưu tên file, không có dấu "/"
+
+// *** THÊM MỚI: Biến trạng thái để kiểm soát micro ***
+bool isMicStreaming = true;
 
 // Header 12B
 struct __attribute__((packed)) PacketHeader {
@@ -73,10 +76,10 @@ void handleCommand() {
     char commandBuffer[32];
     int len = cmdUdp.read(commandBuffer, sizeof(commandBuffer) - 1);
     commandBuffer[len] = '\0';
-    
+
     String command = String(commandBuffer);
     Serial.println("Nhận lệnh: " + command);
-    
+
     if (command == "BLINK3") {
       Serial.println("💡 Thực hiện bấm nhấp LED 3 lần!");
       blinkLED(3);
@@ -92,16 +95,25 @@ void handleCommand() {
   }
 }
 
+// *** CHỈNH SỬA: Hàm này sẽ tắt mic trước khi phát và bật lại sau khi phát xong ***
 void handleAudioPlayback() {
   if (playRequest) {
     playRequest = false;
-    
+
+    // --- Tắt micro trước khi phát nhạc ---
+    if (isMicStreaming) {
+      Serial.println("[MIC] Tạm dừng microphone để phát nhạc...");
+      i2s_driver_uninstall(I2S_NUM_0); // Gỡ cài đặt driver I2S port 0
+      isMicStreaming = false;
+    }
+    // ------------------------------------
+
     String fullPath = "/" + filenameToPlay;
     Serial.printf("[PLAYER] Bắt đầu phát file: %s trên I2S Port %d\n", fullPath.c_str(), I2S_PORT_PLAYER);
-    
+
     file = new AudioFileSourceSPIFFS(fullPath.c_str());
     wav = new AudioGeneratorWAV();
-    
+
     if (wav->begin(file, out)) {
       while (wav->isRunning()) {
         if (!wav->loop()) {
@@ -112,9 +124,18 @@ void handleAudioPlayback() {
     } else {
       Serial.println("[ERROR] Không thể bắt đầu phát file WAV. File có thể bị lỗi hoặc không tồn tại.");
     }
-    
+
     delete wav;
     delete file;
+
+    // --- Bật lại micro sau khi phát xong ---
+    if (!isMicStreaming) {
+      Serial.println("[MIC] Khởi động lại microphone...");
+      setupI2S_Microphone(); // Gọi lại hàm cài đặt I2S cho micro
+      isMicStreaming = true;
+    }
+    // ------------------------------------
+
     Serial.println("\n[SERVER] Đang chờ kết nối tiếp theo...");
   }
 }
@@ -126,12 +147,12 @@ void handleTCPServer() {
 
     String header = client.readStringUntil('\n');
     header.trim();
-    
+
     int colonIndex = header.indexOf(':');
     if (colonIndex > 0) {
       String filename = header.substring(0, colonIndex);
       long filesize = header.substring(colonIndex + 1).toInt();
-      
+
       String fullPath = "/" + filename;
       Serial.printf("[RECEIVER] Nhận header. File: %s, Kích thước: %ld bytes\n", fullPath.c_str(), filesize);
 
@@ -145,7 +166,7 @@ void handleTCPServer() {
       uint8_t buffer[1024];
       long bytesReceived = 0;
       Serial.print("[RECEIVING] Đang nhận file... ");
-      
+
       while (bytesReceived < filesize) {
         int len = client.read(buffer, sizeof(buffer));
         if (len > 0) {
@@ -153,7 +174,7 @@ void handleTCPServer() {
           bytesReceived += len;
         }
       }
-      
+
       audioFile.close();
       Serial.printf("Hoàn tất! Đã nhận %ld bytes.\n", bytesReceived);
 
@@ -162,7 +183,7 @@ void handleTCPServer() {
     } else {
       Serial.println("[ERROR] Header không hợp lệ.");
     }
-    
+
     client.stop();
     Serial.println("[SERVER] Client đã ngắt kết nối.");
   }
@@ -199,104 +220,111 @@ void setupI2S_Microphone() { // *** SỬA LỖI: Đổi tên hàm cho rõ ràng 
 void setup() {
   Serial.begin(115200);
   Serial.println("ESP32 + INMP441 UDP Audio Streaming + LED Control + TCP Player");
-  
+
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
-  
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Đang kết nối WiFi");
-  while (WiFi.status() != WL_CONNECTED) { 
-    delay(300); 
-    Serial.print("."); 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(300);
+    Serial.print(".");
   }
   Serial.println("\nWiFi đã kết nối!");
   Serial.println("IP: " + WiFi.localIP().toString());
 
   udp.begin(SERVER_PORT);
   cmdUdp.begin(COMMAND_PORT);
-  
+
   if (!SPIFFS.begin(true)) {
     Serial.println("[ERROR] Không thể khởi tạo SPIFFS!");
   } else {
     Serial.println("[SETUP] SPIFFS đã sẵn sàng.");
   }
-  
+
   server.begin();
   Serial.printf("[SETUP] TCP Server đã bắt đầu, đang chờ kết nối trên port %d\n", TCP_PORT);
-  
+
   // *** SỬA LỖI: Khởi tạo AudioOutputI2S với port I2S_NUM_1 ***
   out = new AudioOutputI2S(I2S_PORT_PLAYER);
   out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DOUT_PIN);
-  
+
   // *** SỬA LỖI: Gọi hàm setup I2S cho micro ***
   setupI2S_Microphone();
   t0ms = millis();
-  
+
   Serial.println("Hệ thống đã sẵn sàng streaming âm thanh + LED control!");
-  Serial.printf("Sample rate: %d Hz, Frame: %d ms, Samples/frame: %d\n", 
+  Serial.printf("Sample rate: %d Hz, Frame: %d ms, Samples/frame: %d\n",
                 SAMPLE_RATE, FRAME_MS, SAMPLES_PER_FR);
   Serial.printf("Kết nối tới server: %s:%d\n", SERVER_IP, SERVER_PORT);
   Serial.printf("Lắng nghe lệnh trên port: %d\n", COMMAND_PORT);
   Serial.println("Lệnh hỗ trợ: BLINK3, LED_GREEN_ON, LED_GREEN_OFF");
-  
+
   Serial.println("💡 Test LED...");
   blinkLED(2);
 }
 
+// *** CHỈNH SỬA: Chỉ stream audio khi mic được bật ***
 void loop() {
   handleCommand();
   handleAudioPlayback();
   handleTCPServer();
-  
-  // Phần streaming audio từ micro giữ nguyên
-  int32_t raw32[SAMPLES_PER_FR];
-  size_t bytesRead = 0;
-  esp_err_t result = i2s_read(I2S_NUM_0, (void*)raw32, sizeof(raw32), &bytesRead, portMAX_DELAY);
-  
-  if (result != ESP_OK) {
-    Serial.println("Lỗi đọc I2S!");
-    delay(100);
-    return;
-  }
 
-  int n32 = bytesRead / 4;
-  if (n32 == 0) {
-    delay(10);
-    return;
-  }
-  
-  static int16_t pcm16[SAMPLES_PER_FR];
+  // Chỉ thực hiện streaming khi mic đang được bật
+  if (isMicStreaming) {
+    // Phần streaming audio từ micro giữ nguyên
+    int32_t raw32[SAMPLES_PER_FR];
+    size_t bytesRead = 0;
+    esp_err_t result = i2s_read(I2S_NUM_0, (void*)raw32, sizeof(raw32), &bytesRead, portMAX_DELAY);
 
-  for (int i = 0; i < n32; i++) {
-    pcm16[i] = (int16_t)(raw32[i] >> AUDIO_GAIN);
-  }
-
-  PacketHeader h;
-  h.seq   = seq++;
-  h.t_ms  = millis() - t0ms;
-  h.codec = ENABLE_ULAW ? 1 : 0;
-  write_len24(h, n32 * (ENABLE_ULAW ? 1 : 2));
-
-  udp.beginPacket(SERVER_IP, SERVER_PORT);
-  udp.write((uint8_t*)&h, sizeof(h));
-  
-  if (ENABLE_ULAW) {
-    udp.write((uint8_t*)pcm16, n32 * 2);
-  } else {
-    udp.write((uint8_t*)pcm16, n32 * 2);
-  }
-  
-  bool sent = udp.endPacket();
-  
-  if (sent) {
-    if (seq % 50 == 0) {
-      Serial.printf("Đã gửi %d gói, frame %d samples, codec: %s\n", 
-                    seq, n32, ENABLE_ULAW ? "μ-law" : "PCM16");
+    if (result != ESP_OK) {
+      Serial.println("Lỗi đọc I2S!");
+      delay(100);
+      return;
     }
+
+    int n32 = bytesRead / 4;
+    if (n32 == 0) {
+      delay(10);
+      return;
+    }
+
+    static int16_t pcm16[SAMPLES_PER_FR];
+
+    for (int i = 0; i < n32; i++) {
+      pcm16[i] = (int16_t)(raw32[i] >> AUDIO_GAIN);
+    }
+
+    PacketHeader h;
+    h.seq   = seq++;
+    h.t_ms  = millis() - t0ms;
+    h.codec = ENABLE_ULAW ? 1 : 0;
+    write_len24(h, n32 * (ENABLE_ULAW ? 1 : 2));
+
+    udp.beginPacket(SERVER_IP, SERVER_PORT);
+    udp.write((uint8_t*)&h, sizeof(h));
+
+    if (ENABLE_ULAW) {
+      udp.write((uint8_t*)pcm16, n32 * 2);
+    } else {
+      udp.write((uint8_t*)pcm16, n32 * 2);
+    }
+
+    bool sent = udp.endPacket();
+
+    if (sent) {
+      if (seq % 50 == 0) {
+        Serial.printf("Đã gửi %d gói, frame %d samples, codec: %s\n",
+                      seq, n32, ENABLE_ULAW ? "μ-law" : "PCM16");
+      }
+    } else {
+      Serial.println("Lỗi gửi UDP!");
+    }
+
+    delay(FRAME_MS);
   } else {
-    Serial.println("Lỗi gửi UDP!");
+    // Khi mic tắt, chỉ cần một delay nhỏ để không khóa CPU
+    delay(50);
   }
-  
-  delay(FRAME_MS);
 }
