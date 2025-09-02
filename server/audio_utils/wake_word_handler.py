@@ -71,11 +71,15 @@ def process_question_capture(transcription, timestamp, socketio):
     # Đọc to câu trả lời AI nếu có
     if ai_response:
         try:
-            print(f"🔊 Đang đọc to câu trả lời AI...")
-            text_to_speech(ai_response, language='vi', auto_play=True)
-            print(f"✅ Đã đọc to câu trả lời AI")
+            print(f"🔊 Đang gửi câu trả lời AI tới ESP32...")
+            # Sử dụng ESP32 mode thay vì phát từ loa máy tính
+            success = text_to_speech(ai_response, language='vi', esp32_mode=True, esp32_ip="192.168.1.18", esp32_port=8080)
+            if success:
+                print(f"✅ Đã gửi câu trả lời AI tới ESP32")
+            else:
+                print(f"❌ Lỗi gửi câu trả lời AI tới ESP32")
         except Exception as e:
-            print(f"⚠️ Lỗi TTS: {e}")
+            print(f"⚠️ Lỗi TTS -> ESP32: {e}")
     
     # Gửi lên web UI bao gồm cả câu hỏi và AI response
     socketio.emit("question_captured", {

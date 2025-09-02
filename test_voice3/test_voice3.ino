@@ -4,6 +4,12 @@
 #include "driver/i2s.h"
 #include "config.h"  // File cấu hình WiFi và pins
 
+// Thêm thư viện cho audio playback
+#include "SPIFFS.h"
+#include "AudioFileSourceSPIFFS.h"
+#include "AudioGeneratorWAV.h"
+#include "AudioOutputI2S.h"
+
 // ---- Audio params ----
 #define SAMPLES_PER_FR  (SAMPLE_RATE * FRAME_MS / 1000)  // 320
 #define BYTES_PER_SMP   2   // int16_t
@@ -13,10 +19,28 @@
 #define LED_BUILTIN 2  // Built-in LED trên GPIO 2
 #define COMMAND_PORT 5006  // Port để nhận lệnh từ server
 
+// ---- Audio Playback Configuration ----
+#define I2S_BCLK_PIN 26  // I2S Bit Clock pin
+#define I2S_LRC_PIN 27   // I2S Left/Right Clock pin  
+#define I2S_DOUT_PIN 25  // I2S Data Out pin
+#define TCP_PORT 8080    // Port cho TCP Server nhận file audio
+// *** SỬA LỖI: Chỉ định port I2S số 1 cho việc phát nhạc ***
+#define I2S_PORT_PLAYER I2S_NUM_1
+
 WiFiUDP udp;
 WiFiUDP cmdUdp;  // UDP socket riêng để nhận lệnh
 uint32_t seq = 0;
 uint32_t t0ms = 0;
+
+// Audio playback objects
+AudioGeneratorWAV *wav;
+AudioFileSourceSPIFFS *file;
+AudioOutputI2S *out;
+
+// TCP server for receiving audio files
+WiFiServer server(TCP_PORT);
+bool playRequest = false;
+String filenameToPlay;  // Chỉ lưu tên file, không có dấu "/"
 
 // Header 12B
 struct __attribute__((packed)) PacketHeader {
@@ -35,26 +59,20 @@ static inline void write_len24(PacketHeader& h, uint32_t n) {
 }
 
 void blinkLED(int times) {
-  /**
-   * Bấm nhấp LED built-in một số lần nhất định
-   */
   for (int i = 0; i < times; i++) {
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(200);  // Sáng 200ms
+    delay(200);
     digitalWrite(LED_BUILTIN, LOW);
-    delay(200);  // Tắt 200ms
+    delay(200);
   }
 }
 
 void handleCommand() {
-  /**
-   * Xử lý lệnh nhận từ server
-   */
   int packetSize = cmdUdp.parsePacket();
   if (packetSize > 0) {
     char commandBuffer[32];
     int len = cmdUdp.read(commandBuffer, sizeof(commandBuffer) - 1);
-    commandBuffer[len] = '\0';  // Null-terminate string
+    commandBuffer[len] = '\0';
     
     String command = String(commandBuffer);
     Serial.println("Nhận lệnh: " + command);
@@ -64,22 +82,98 @@ void handleCommand() {
       blinkLED(3);
     } else if (command == "LED_GREEN_ON") {
       Serial.println("🟢 Bật đèn xanh liên tục!");
-      digitalWrite(LED_BUILTIN, HIGH);  // Bật đèn và giữ sáng
+      digitalWrite(LED_BUILTIN, HIGH);
     } else if (command == "LED_GREEN_OFF") {
       Serial.println("⚫ Tắt đèn xanh!");
-      digitalWrite(LED_BUILTIN, LOW);   // Tắt đèn
+      digitalWrite(LED_BUILTIN, LOW);
     } else {
       Serial.println("Lệnh không hợp lệ: " + command);
     }
   }
 }
 
-void setupI2S() {
+void handleAudioPlayback() {
+  if (playRequest) {
+    playRequest = false;
+    
+    String fullPath = "/" + filenameToPlay;
+    Serial.printf("[PLAYER] Bắt đầu phát file: %s trên I2S Port %d\n", fullPath.c_str(), I2S_PORT_PLAYER);
+    
+    file = new AudioFileSourceSPIFFS(fullPath.c_str());
+    wav = new AudioGeneratorWAV();
+    
+    if (wav->begin(file, out)) {
+      while (wav->isRunning()) {
+        if (!wav->loop()) {
+          wav->stop();
+          Serial.println("[PLAYER] Phát nhạc hoàn tất.");
+        }
+      }
+    } else {
+      Serial.println("[ERROR] Không thể bắt đầu phát file WAV. File có thể bị lỗi hoặc không tồn tại.");
+    }
+    
+    delete wav;
+    delete file;
+    Serial.println("\n[SERVER] Đang chờ kết nối tiếp theo...");
+  }
+}
+
+void handleTCPServer() {
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("[SERVER] Client đã kết nối!");
+
+    String header = client.readStringUntil('\n');
+    header.trim();
+    
+    int colonIndex = header.indexOf(':');
+    if (colonIndex > 0) {
+      String filename = header.substring(0, colonIndex);
+      long filesize = header.substring(colonIndex + 1).toInt();
+      
+      String fullPath = "/" + filename;
+      Serial.printf("[RECEIVER] Nhận header. File: %s, Kích thước: %ld bytes\n", fullPath.c_str(), filesize);
+
+      File audioFile = SPIFFS.open(fullPath, FILE_WRITE);
+      if (!audioFile) {
+        Serial.println("[ERROR] Không thể tạo file trên SPIFFS!");
+        client.stop();
+        return;
+      }
+
+      uint8_t buffer[1024];
+      long bytesReceived = 0;
+      Serial.print("[RECEIVING] Đang nhận file... ");
+      
+      while (bytesReceived < filesize) {
+        int len = client.read(buffer, sizeof(buffer));
+        if (len > 0) {
+          audioFile.write(buffer, len);
+          bytesReceived += len;
+        }
+      }
+      
+      audioFile.close();
+      Serial.printf("Hoàn tất! Đã nhận %ld bytes.\n", bytesReceived);
+
+      filenameToPlay = filename;
+      playRequest = true;
+    } else {
+      Serial.println("[ERROR] Header không hợp lệ.");
+    }
+    
+    client.stop();
+    Serial.println("[SERVER] Client đã ngắt kết nối.");
+  }
+}
+
+void setupI2S_Microphone() { // *** SỬA LỖI: Đổi tên hàm cho rõ ràng ***
   i2s_config_t cfg = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT, // INMP441 out 24-bit ở khung 32-bit
-    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,  // đã kéo L/R về GND -> LEFT
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
+    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 6,
@@ -92,10 +186,11 @@ void setupI2S() {
   i2s_pin_config_t pin = {
     .bck_io_num = I2S_SCK,
     .ws_io_num = I2S_WS,
-    .data_out_num = I2S_PIN_NO_CHANGE, // mic -> RX nên không dùng TX
+    .data_out_num = I2S_PIN_NO_CHANGE,
     .data_in_num = I2S_SD
   };
 
+  // Cài đặt driver cho I2S Port 0 (Microphone)
   i2s_driver_install(I2S_NUM_0, &cfg, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &pin);
   i2s_zero_dma_buffer(I2S_NUM_0);
@@ -103,13 +198,11 @@ void setupI2S() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("ESP32 + INMP441 UDP Audio Streaming + LED Control");
+  Serial.println("ESP32 + INMP441 UDP Audio Streaming + LED Control + TCP Player");
   
-  // Khởi tạo LED
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   
-  // Kết nối WiFi
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Đang kết nối WiFi");
@@ -120,11 +213,24 @@ void setup() {
   Serial.println("\nWiFi đã kết nối!");
   Serial.println("IP: " + WiFi.localIP().toString());
 
-  // Khởi tạo UDP sockets
-  udp.begin(SERVER_PORT); // optional, để có thể recv reply
-  cmdUdp.begin(COMMAND_PORT); // Để nhận lệnh từ server
+  udp.begin(SERVER_PORT);
+  cmdUdp.begin(COMMAND_PORT);
   
-  setupI2S();
+  if (!SPIFFS.begin(true)) {
+    Serial.println("[ERROR] Không thể khởi tạo SPIFFS!");
+  } else {
+    Serial.println("[SETUP] SPIFFS đã sẵn sàng.");
+  }
+  
+  server.begin();
+  Serial.printf("[SETUP] TCP Server đã bắt đầu, đang chờ kết nối trên port %d\n", TCP_PORT);
+  
+  // *** SỬA LỖI: Khởi tạo AudioOutputI2S với port I2S_NUM_1 ***
+  out = new AudioOutputI2S(I2S_PORT_PLAYER);
+  out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DOUT_PIN);
+  
+  // *** SỬA LỖI: Gọi hàm setup I2S cho micro ***
+  setupI2S_Microphone();
   t0ms = millis();
   
   Serial.println("Hệ thống đã sẵn sàng streaming âm thanh + LED control!");
@@ -134,16 +240,16 @@ void setup() {
   Serial.printf("Lắng nghe lệnh trên port: %d\n", COMMAND_PORT);
   Serial.println("Lệnh hỗ trợ: BLINK3, LED_GREEN_ON, LED_GREEN_OFF");
   
-  // Test LED
   Serial.println("💡 Test LED...");
   blinkLED(2);
 }
 
 void loop() {
-  // Xử lý lệnh từ server (kiểm tra trước)
   handleCommand();
+  handleAudioPlayback();
+  handleTCPServer();
   
-  // Đọc 32-bit từ I2S, chuyển về int16_t (lấy 16 bit có nghĩa ở giữa)
+  // Phần streaming audio từ micro giữ nguyên
   int32_t raw32[SAMPLES_PER_FR];
   size_t bytesRead = 0;
   esp_err_t result = i2s_read(I2S_NUM_0, (void*)raw32, sizeof(raw32), &bytesRead, portMAX_DELAY);
@@ -163,23 +269,20 @@ void loop() {
   static int16_t pcm16[SAMPLES_PER_FR];
 
   for (int i = 0; i < n32; i++) {
-    // INMP441: 24-bit hữu ích nằm ở 31..8 -> shift về 16-bit
-    pcm16[i] = (int16_t)(raw32[i] >> AUDIO_GAIN); // Sử dụng AUDIO_GAIN từ config
+    pcm16[i] = (int16_t)(raw32[i] >> AUDIO_GAIN);
   }
 
-  // Gửi UDP
   PacketHeader h;
   h.seq   = seq++;
   h.t_ms  = millis() - t0ms;
-  h.codec = ENABLE_ULAW ? 1 : 0; // Sử dụng cấu hình từ config
-  write_len24(h, n32 * (ENABLE_ULAW ? 1 : 2)); // μ-law: 1 byte/sample, PCM: 2 bytes/sample
+  h.codec = ENABLE_ULAW ? 1 : 0;
+  write_len24(h, n32 * (ENABLE_ULAW ? 1 : 2));
 
   udp.beginPacket(SERVER_IP, SERVER_PORT);
   udp.write((uint8_t*)&h, sizeof(h));
   
   if (ENABLE_ULAW) {
-    // TODO: Thêm encoder μ-law ở đây
-    udp.write((uint8_t*)pcm16, n32 * 2); // Tạm thời vẫn gửi PCM
+    udp.write((uint8_t*)pcm16, n32 * 2);
   } else {
     udp.write((uint8_t*)pcm16, n32 * 2);
   }
@@ -187,7 +290,6 @@ void loop() {
   bool sent = udp.endPacket();
   
   if (sent) {
-    // Hiển thị thông tin mỗi 50 gói để debug
     if (seq % 50 == 0) {
       Serial.printf("Đã gửi %d gói, frame %d samples, codec: %s\n", 
                     seq, n32, ENABLE_ULAW ? "μ-law" : "PCM16");
@@ -196,6 +298,5 @@ void loop() {
     Serial.println("Lỗi gửi UDP!");
   }
   
-  // Đợi để đảm bảo frame 20ms
   delay(FRAME_MS);
 }

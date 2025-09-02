@@ -24,3 +24,8 @@
 #define ENABLE_ULAW     0                 // 0=PCM, 1=μ-law compression
 #define ENABLE_VAD      0                 // 0=không VAD, 1=có VAD
 #define HEARTBEAT_MS    1000              // Gửi heartbeat mỗi 1 giây 
+
+// ===== CẤU HÌNH AUDIO PLAYBACK =====
+// Thông tin để nhận file audio từ server
+#define AUDIO_TCP_PORT  8080              // Port TCP để nhận file audio
+#define MAX_FILENAME_LENGTH 64            // Độ dài tối đa tên file 

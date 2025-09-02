@@ -2,6 +2,7 @@
 noisereduce>=2.0.1
 scipy>=1.9.0
 numpy>=1.21.0
+miniaudio>=1.45
 
 # Speech Recognition
 SpeechRecognition>=3.10.0

@@ -12,7 +12,8 @@ from .wake_word_handler import check_wake_word, process_wake_word_detection, pro
 from .asr_processor import asr_worker
 from .flask_server import create_app, create_templates
 from .gemini_api import ask_gemini, gemini_ask
-from .tts_utils import text_to_audio_file, play_audio_file, text_to_speech
+from .tts_utils import text_to_audio_file, play_audio_file, text_to_speech, text_to_speech_esp32, convert_mp3_to_wav
+from .esp32_audio_sender import ESP32AudioSender, send_audio_to_esp32, send_audio_to_esp32_async
 
 __all__ = [
     'audio_preprocessing_improved',
@@ -37,5 +38,7 @@ __all__ = [
     # Gemini AI integration
     'ask_gemini', 'gemini_ask',
     # TTS utils
-    'text_to_audio_file', 'play_audio_file', 'text_to_speech'
+    'text_to_audio_file', 'play_audio_file', 'text_to_speech', 'text_to_speech_esp32', 'convert_mp3_to_wav',
+    # ESP32 Audio Sender
+    'ESP32AudioSender', 'send_audio_to_esp32', 'send_audio_to_esp32_async'
 ] 
