@@ -95,7 +95,7 @@ void handleCommand() {
   }
 }
 
-// *** CHỈNH SỬA: Hàm này sẽ tắt mic trước khi phát và bật lại sau khi phát xong ***
+// *** CHỈNH SỬA: Hàm này sẽ tắt mic, phát nhạc, xóa file và bật lại mic ***
 void handleAudioPlayback() {
   if (playRequest) {
     playRequest = false;
@@ -127,6 +127,13 @@ void handleAudioPlayback() {
 
     delete wav;
     delete file;
+
+    // *** THÊM MỚI: Xóa file sau khi phát xong ***
+    if (SPIFFS.remove(fullPath.c_str())) {
+      Serial.printf("[SPIFFS] Đã xóa file: %s\n", fullPath.c_str());
+    } else {
+      Serial.printf("[ERROR] Không thể xóa file: %s\n", fullPath.c_str());
+    }
 
     // --- Bật lại micro sau khi phát xong ---
     if (!isMicStreaming) {
