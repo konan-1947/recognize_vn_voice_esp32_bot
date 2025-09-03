@@ -101,3 +101,33 @@ Lưu ý mạng: ESP32 và server phải cùng LAN; chỉnh `SERVER_IP` trong `te
 
 ### Tham chiếu nhanh pipeline
 - Thu âm → UDP → Queue → Circular buffer → Preprocess → Google Speech → Transcript → (Wake word → Hỏi Gemini → TTS) → Gửi WAV → ESP32 phát.
+
+---
+
+## Cấu hình chân ESP32 (tham khảo)
+
+Các chân dưới đây tương ứng code mẫu trong `test_voice3/test_voice3.ino` và `test_voice3/config.h`. Bạn có thể đổi theo phần cứng thực tế.
+
+- Micro INMP441 (I2S In, ghi âm):
+  - `I2S_WS` (LRCL/Word Select): GPIO `18`
+  - `I2S_SCK` (BCLK/Bit Clock): GPIO `14`
+  - `I2S_SD`  (DOUT từ mic):   GPIO `32`
+- I2S phát (Audio Output cho playback từ ESP32):
+  - `I2S_BCLK_PIN` (BCLK): GPIO `26`
+  - `I2S_LRC_PIN`  (LRCL): GPIO `27`
+  - `I2S_DOUT_PIN` (DATA): GPIO `25`
+- LED trạng thái (onboard):
+  - `LED_BUILTIN`: GPIO `2`
+- Cổng giao tiếp:
+  - UDP audio out (ESP32 → Server): `SERVER_PORT 5005` (set trong firmware)
+  - UDP command in (Server → ESP32): `COMMAND_PORT 5006`
+  - TCP nhận WAV (ESP32 server): `8080`
+- Wi‑Fi & Server IP (chỉnh trong firmware):
+  - `WIFI_SSID`, `WIFI_PASS` (tên/mật khẩu Wi‑Fi)
+  - `SERVER_IP` (đặt IP máy chạy Python server)
+
+Sơ đồ tối giản:
+```
+INMP441 → (I2S_WS=18, I2S_SCK=14, I2S_SD=32) → ESP32
+ESP32 I2S Out → (BCLK=26, LRC=27, DOUT=25) → DAC/AMP/Loa
+```
