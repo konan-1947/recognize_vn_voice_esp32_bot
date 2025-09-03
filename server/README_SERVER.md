@@ -48,14 +48,10 @@ GEMINI_SYSTEM_PROMPT=Trả lời ngắn gọn, chính xác bằng tiếng Việt
 ```
 3) Chạy server real‑time
 ```bash
-python google_speech_circular_server.py
+python diyww.py
 # Web: http://localhost:5000, UDP: 5005, Socket.IO: mặc định theo Flask
 ```
-4) Ghi âm kiểm thử (không cần web/UI)
-```bash
-python audio_test_recorder.py
-# Lưu raw + processed WAV và kết quả nhận dạng để so sánh
-```
+
 
 Lưu ý mạng: ESP32 và server phải cùng LAN; chỉnh `SERVER_IP` trong `test_voice3/config.h` (phía firmware ESP32).
 
