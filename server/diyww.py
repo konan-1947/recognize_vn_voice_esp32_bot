@@ -32,13 +32,13 @@ def signal_handler(signum, frame):
     print("[SHUTDOWN] Server đã dừng an toàn")
     sys.exit(0)
 
-def send_audio_to_esp32_wrapper(wav_file_path: str, esp32_ip: str = "192.168.1.18", esp32_port: int = 8080) -> bool:
+def send_audio_to_esp32_wrapper(wav_file_path: str, esp32_ip: str = "192.168.1.35", esp32_port: int = 8080) -> bool:
     """
     Hàm wrapper để gửi file âm thanh tới ESP32
     
     Args:
         wav_file_path: Đường dẫn tới file WAV
-        esp32_ip: IP của ESP32 (mặc định: 192.168.1.18)
+        esp32_ip: IP của ESP32 (mặc định: 192.168.1.35)
         esp32_port: Port TCP của ESP32 (mặc định: 8080)
     
     Returns:
@@ -47,13 +47,13 @@ def send_audio_to_esp32_wrapper(wav_file_path: str, esp32_ip: str = "192.168.1.1
     print(f"[ESP32_AUDIO] Đang gửi file {wav_file_path} tới ESP32 {esp32_ip}:{esp32_port}")
     return send_audio_to_esp32(wav_file_path, esp32_ip, esp32_port)
 
-def send_audio_to_esp32_async_wrapper(wav_file_path: str, esp32_ip: str = "192.168.1.18", esp32_port: int = 8080):
+def send_audio_to_esp32_async_wrapper(wav_file_path: str, esp32_ip: str = "192.168.1.35", esp32_port: int = 8080):
     """
     Hàm wrapper để gửi file âm thanh tới ESP32 bất đồng bộ
     
     Args:
         wav_file_path: Đường dẫn tới file WAV
-        esp32_ip: IP của ESP32 (mặc định: 192.168.1.18)
+        esp32_ip: IP của ESP32 (mặc định: 192.168.1.35)
         esp32_port: Port TCP của ESP32 (mặc định: 8080)
     """
     def on_success(file_path):
@@ -65,7 +65,7 @@ def send_audio_to_esp32_async_wrapper(wav_file_path: str, esp32_ip: str = "192.1
     print(f"[ESP32_AUDIO] Đang gửi file {wav_file_path} tới ESP32 {esp32_ip}:{esp32_port} (async)")
     return send_audio_to_esp32_async(wav_file_path, esp32_ip, esp32_port, on_success, on_error)
 
-def test_esp32_connection(esp32_ip: str = "192.168.1.18", esp32_port: int = 8080) -> bool:
+def test_esp32_connection(esp32_ip: str = "192.168.1.35", esp32_port: int = 8080) -> bool:
     """
     Test kết nối tới ESP32
     

@@ -5,9 +5,9 @@
 #define WIFI_SSID "Router1"        // Thay bằng SSID WiFi của bạn
 #define WIFI_PASS "dangVuDinh"    // Thay bằng mật khẩu WiFi của bạn
 
-// Thông tin server Python
-#define SERVER_IP "192.168.1.35"          // IP máy chạy Python server
-#define SERVER_PORT 5005                  // Port UDP (có thể giữ nguyên)
+// Thông tin server Python - Moved to secrets.h to avoid conflicts
+// #define SERVER_IP "192.168.1.35"          // IP máy chạy Python server
+// #define SERVER_PORT 5005                  // Port UDP (có thể giữ nguyên)
 
 // ===== CẤU HÌNH I2S PINS =====
 // Điều chỉnh chân kết nối theo board ESP32 của bạn
@@ -29,3 +29,14 @@
 // Thông tin để nhận file audio từ server
 #define AUDIO_TCP_PORT  8080              // Port TCP để nhận file audio
 #define MAX_FILENAME_LENGTH 64            // Độ dài tối đa tên file 
+
+// ===== CẤU HÌNH ANIMATION DIRECTORS =====
+// Timing constants cho animation system
+#define BLINK_INTERVAL_MIN  2000          // Khoảng cách tối thiểu giữa các lần chớp mắt (ms)
+#define BLINK_INTERVAL_MAX  8000          // Khoảng cách tối đa giữa các lần chớp mắt (ms)
+
+#define NEUTRAL_DWELL_MIN   3000          // Thời gian tối thiểu ở trạng thái neutral (ms)
+#define NEUTRAL_DWELL_MAX   8000          // Thời gian tối đa ở trạng thái neutral (ms)
+
+#define EMOTION_DWELL_MIN   2000          // Thời gian tối thiểu ở trạng thái cảm xúc (ms)
+#define EMOTION_DWELL_MAX   5000          // Thời gian tối đa ở trạng thái cảm xúc (ms)
