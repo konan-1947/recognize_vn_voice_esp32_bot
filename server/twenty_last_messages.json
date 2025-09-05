@@ -1,0 +1,37 @@
+[
+  {
+    "timestamp": "2025-09-06T01:58:32.171291",
+    "user": "Tôi tên là gì",
+    "ai": "```json { \"main_response\": \"Tôi là Konan. Tôi chưa biết tên bạn. Bạn có thể cho tôi biết tên để Konan ghi nhớ không?\", \"new_memory\": { \"user_name\": \"\", \"preferences\": \"\",..."
+  },
+  {
+    "timestamp": "2025-09-06T02:01:49.976635",
+    "user": "Tôi tên là gì",
+    "ai": "Tôi là Konan. Tôi chưa biết tên bạn. Bạn có thể cho tôi biết tên để Konan ghi nhớ không?"
+  },
+  {
+    "timestamp": "2025-09-06T02:02:49.378580",
+    "user": "Tôi tên là Đăng Hãy ghi nhớ",
+    "ai": "Chào Đăng! Konan đã ghi nhớ tên bạn rồi. Rất vui được biết bạn!"
+  },
+  {
+    "timestamp": "2025-09-06T02:03:27.850788",
+    "user": "Tôi tên là gì",
+    "ai": "Bạn tên là Đăng, đúng không? Konan đã ghi nhớ tên bạn rồi! Có điều gì Konan có thể giúp Đăng hôm nay không?"
+  },
+  {
+    "timestamp": "2025-09-06T02:05:39.989472",
+    "user": "Hãy giúp tôi ngủ ngon đi",
+    "ai": "Chào Đăng! Để ngủ ngon, Đăng hãy thử thư giãn trước khi ngủ, tránh cà phê tối và tạo không gian yên tĩnh nhé. Chúc Đăng có giấc ngủ thật sâu!"
+  },
+  {
+    "timestamp": "2025-09-06T02:09:12.806145",
+    "user": "hãy chúc tôi ngủ ngon đi",
+    "ai": "Chúc Đăng ngủ thật ngon giấc nhé! Konan hy vọng Đăng có một đêm an lành và những giấc mơ đẹp."
+  },
+  {
+    "timestamp": "2025-09-06T02:10:12.624706",
+    "user": "đọc một câu thơ đi",
+    "ai": "Konan xin đọc tặng Đăng một câu thơ nhé: 'Sen tàn cúc lại nở hoa, Sầu dài ngày ngắn đông đà sang xuân.' Mong Đăng thích!"
+  }
+]

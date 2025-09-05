@@ -10,9 +10,7 @@
 #include "AudioGeneratorWAV.h"
 #include "AudioOutputI2S.h"
 
-// Thư viện cho animated eyes
-#include "engine/AnimationEngine.h"
-#include "directors/Directors.h"
+// Thư viện cho OLED display
 #include <U8g2lib.h>
 
 // Thư viện cho đa nhiệm và WiFi
@@ -25,9 +23,6 @@
 
 // Khởi tạo đối tượng màn hình OLED với pins mới (SDA=4, SCL=5)
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 5, /* data=*/ 4, /* reset=*/ U8X8_PIN_NONE);
-
-// Task handle cho animation
-TaskHandle_t animationTaskHandle = NULL;
 
 // Biến cho animation và network
 WiFiMulti wifiMulti;
@@ -104,57 +99,53 @@ bool checkServerAvailability() {
 }
 
 // =================================================================
-// ANIMATION TASK - CHẠY TRÊN CORE 0 VỚI PRIORITY THẤP
+// DISPLAY TASK - HIỂN THỊ THÔNG TIN CƠ BẢN
 // =================================================================
-void animationTask(void* parameter) {
-    Serial.println("[Animation Task] Bắt đầu animation task trên Core 0");
+void displayTask(void* parameter) {
+    Serial.println("[Display Task] Bắt đầu display task trên Core 0");
     
     while(1) {
-        // 1. "Bộ não Chớp mắt" quyết định khi nào cần chớp
-        if (blink_director_update()) {
-            animation_engine_start_blink();
+        u8g2.clearBuffer();
+        
+        // Hiển thị tên bot (căn lề trái)
+        u8g2.setFont(u8g2_font_ncenB10_tr);
+        u8g2.drawStr(0, 12, "Konan's bot");
+        
+        // Hiển thị ESP32 IP address (căn lề trái)
+        u8g2.setFont(u8g2_font_6x10_tr);
+        String ipStr = "ESP32: " + WiFi.localIP().toString();
+        u8g2.drawStr(0, 24, ipStr.c_str());
+        
+        // Hiển thị Server IP address (căn lề trái)
+        String serverIpStr = "Server: ";
+        if (server_discovered && discovered_server_ip.length() > 0) {
+            serverIpStr += discovered_server_ip;
+        } else {
+            serverIpStr += String(SERVER_IP);
+        }
+        u8g2.drawStr(0, 36, serverIpStr.c_str());
+        
+        // Hiển thị trạng thái server (căn lề trái)
+        if (serverAvailable) {
+            u8g2.drawStr(0, 48, "Status: Online");
+        } else {
+            u8g2.drawStr(0, 48, "Status: Offline");
         }
         
-        // 2. "Bộ não Cảm xúc" quyết định cảm xúc tiếp theo
-        emotion_director_update();
-
-        // 3. "Bộ não Hướng nhìn" quyết định khi nào cần liếc mắt
-        gaze_director_update();
-
-        // 4. Engine luôn cập nhật và vẽ lại mắt lên màn hình
-        animation_engine_update();
-
-        // Hiển thị thông báo trên OLED khi server không có sẵn
-        if (!serverAvailable && isMicStreaming) {
-            static unsigned long lastOledUpdate = 0;
-            unsigned long currentTime = millis();
-            if (currentTime - lastOledUpdate > 2000) {
-                u8g2.clearBuffer();
-                u8g2.setFont(u8g2_font_ncenB08_tr);
-                u8g2.drawStr(10, 20, "Server offline");
-                u8g2.drawStr(10, 35, SERVER_IP);
-                u8g2.drawStr(10, 50, "Waiting...");
-                u8g2.sendBuffer();
-                lastOledUpdate = currentTime;
-            }
+        // Hiển thị trạng thái mic (căn lề trái)
+        if (isMicStreaming) {
+            u8g2.drawStr(0, 60, "Mic: Streaming");
+        } else {
+            u8g2.drawStr(0, 60, "Mic: Paused");
         }
         
-        // 30Hz - giảm tần số để tiết kiệm CPU cho audio
-        vTaskDelay(33 / portTICK_PERIOD_MS);
+        u8g2.sendBuffer();
+        
+        // Cập nhật mỗi 2 giây
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
 
-// =================================================================
-// HÀM HELPER ĐỂ TÌM EMOTION THEO TÊN
-// =================================================================
-const Emotion* find_emotion_by_name(const char* emotion_name) {
-    for (int i = 0; i < EMOTION_COUNT; i++) {
-        if (strcmp(emotions[i].name, emotion_name) == 0) {
-            return &emotions[i];
-        }
-    }
-    return nullptr; // Không tìm thấy
-}
 
 void blinkLED(int times) {
   for (int i = 0; i < times; i++) {
@@ -446,35 +437,13 @@ void networkAndBrainTask(void *pvParameters) {
                 Serial.println("[Core 0] Nhận được lệnh cảm xúc:");
                 Serial.println(payload);
                 
-                // Parse JSON để lấy emotion
+                // Log emotion command (không cần xử lý animation)
                 if (payload.indexOf("\"emotion\"") != -1) {
-                    // Tìm emotion trong JSON
                     int startPos = payload.indexOf("\"emotion\":\"") + 11;
                     int endPos = payload.indexOf("\"", startPos);
                     if (startPos > 10 && endPos > startPos) {
                         String emotion = payload.substring(startPos, endPos);
-                        Serial.printf("[Core 0] Thực hiện cảm xúc: %s\n", emotion.c_str());
-                        
-                        // Thực hiện thay đổi cảm xúc
-                        const Emotion* target_emotion = find_emotion_by_name(emotion.c_str());
-                        if (target_emotion != nullptr) {
-                            // Lấy emotion hiện tại (neutral làm mặc định)
-                            const Emotion* current_emotion = &emotions[NEUTRAL_STATE_INDEX];
-                            
-                            // Thực hiện animation chuyển đổi cảm xúc
-                            animation_engine_change_emotion(
-                                current_emotion,    // Từ cảm xúc hiện tại
-                                target_emotion,     // Đến cảm xúc mới
-                                1.0f,               // Thời gian chuyển đổi: 1 giây
-                                1.0f,               // Cường độ: 100%
-                                EASE_IN_OUT_QUAD,   // Kiểu easing
-                                3000                // Thời gian giữ cảm xúc: 3 giây
-                            );
-                            
-                            Serial.printf("[Core 0] Đã thực hiện cảm xúc: %s\n", emotion.c_str());
-                        } else {
-                            Serial.printf("[Core 0] Không tìm thấy cảm xúc: %s\n", emotion.c_str());
-                        }
+                        Serial.printf("[Core 0] Nhận lệnh cảm xúc: %s (chỉ log)\n", emotion.c_str());
                     }
                 }
             } else if (httpCode == 404) {
@@ -533,12 +502,9 @@ void setup() {
   u8g2.begin();
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_ncenB14_tr);
-  u8g2.drawStr(10, 35, "Robot Eyes");
+  u8g2.drawStr(15, 35, "Konan's bot");
   u8g2.sendBuffer();
-  
-  // Khởi tạo animation system
-  animation_engine_initialize();
-  initialize_directors();
+  delay(2000); // Hiển thị 2 giây
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
@@ -585,18 +551,18 @@ void setup() {
       NULL,                  // Task handle.
       0);                    // Core where the task should run (0)
 
-  // Tạo animation task trên Core 0 với priority thấp
+  // Tạo display task trên Core 0 với priority thấp
   xTaskCreatePinnedToCore(
-      animationTask,         // Function to implement the task
-      "Animation",           // Name of the task
-      4096,                  // Stack size in words (nhỏ hơn)
+      displayTask,           // Function to implement the task
+      "Display",             // Name of the task
+      4096,                  // Stack size in words
       NULL,                  // Task input parameter
       1,                     // Priority = 1 (THẤP hơn network task)
-      &animationTaskHandle,  // Task handle
+      NULL,                  // Task handle
       0);                    // Core 0 (cùng với network)
 
   Serial.println("Setup hoàn tất. Bắt đầu luồng chính trên Core 1...");
-  Serial.println("ESP32 + INMP441 UDP Audio Streaming + LED Control + TCP Player + Animated Eyes!");
+  Serial.println("ESP32 + INMP441 UDP Audio Streaming + LED Control + TCP Player + Simple Display!");
   Serial.printf("Sample rate: %d Hz, Frame: %d ms, Samples/frame: %d\n",
                 SAMPLE_RATE, FRAME_MS, SAMPLES_PER_FR);
   Serial.printf("Kết nối tới server: %s:%d\n", SERVER_IP, SERVER_PORT);
@@ -606,13 +572,13 @@ void setup() {
   Serial.println("Test LED...");
   blinkLED(2);
   
-  Serial.println("Hàm setup() đã hoàn tất trên Core 1. Animation engine đang chạy.");
+  Serial.println("Hàm setup() đã hoàn tất trên Core 1. Display task đang chạy.");
 }
 
 
-// *** LOOP CHÍNH TỐI ƯU CHO AUDIO VÀ ANIMATION ***
+// *** LOOP CHÍNH TỐI ƯU CHO AUDIO ***
 void loop() {
-  // Core 1 bây giờ tập trung vào cả audio streaming và animation mượt mà
+  // Core 1 bây giờ tập trung vào audio streaming
   
   // === PHẦN 1: XỬ LÝ AUDIO STREAMING (PRIORITY CAO) ===
   handleCommand();
@@ -705,28 +671,16 @@ void loop() {
     // Thêm delay nhỏ để tránh overload UDP buffer
     delayMicroseconds(500);
   } else {
-    // Khi không streaming (server không có sẵn hoặc mic tắt)
-    if (!serverAvailable && isMicStreaming) {
-      // Hiển thị thông báo trên OLED khi server không có sẵn - COMMENTED FOR AUDIO DEBUG
-      // static unsigned long lastOledUpdate = 0;
-      // if (currentTime - lastOledUpdate > 2000) {
-      //   u8g2.clearBuffer();
-      //   u8g2.setFont(u8g2_font_ncenB08_tr);
-      //   u8g2.drawStr(10, 20, "Server offline");
-      //   u8g2.drawStr(10, 35, SERVER_IP);
-      //   u8g2.drawStr(10, 50, "Waiting...");
-      //   u8g2.sendBuffer();
-      //   lastOledUpdate = currentTime;
-      // }
-    }
+    // Display task sẽ tự động cập nhật trạng thái
+    // Không cần xử lý OLED ở đây nữa
   }
 
-  // === PHẦN 2: ANIMATION ĐÃ ĐƯỢC CHUYỂN SANG ANIMATION TASK TRÊN CORE 0 ===
-  // Animation giờ chạy độc lập trên Core 0 với priority thấp
+  // === PHẦN 2: DISPLAY ĐÃ ĐƯỢC CHUYỂN SANG DISPLAY TASK TRÊN CORE 0 ===
+  // Display giờ chạy độc lập trên Core 0 với priority thấp
   // Core 1 chỉ tập trung vào audio streaming
 
   // Không delay khi streaming để đảm bảo realtime audio
-  // Animation giờ chạy trên task riêng, không cần delay ở đây
+  // Display giờ chạy trên task riêng, không cần delay ở đây
   if (!isMicStreaming || !serverAvailable) {
     delay(5); // Delay rất nhỏ
   }

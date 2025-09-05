@@ -44,21 +44,22 @@ def process_wake_word_detection(transcription, timestamp, seq, socketio):
     })
 
 def process_question_capture(transcription, timestamp, socketio):
-    """Xử lý khi capture được câu hỏi và tạo AI response"""
+    """Xử lý khi capture được câu hỏi và tạo AI response với memory tự động"""
     print(f"❓ Câu hỏi đã nhận dạng: {transcription}")
     
     # Gửi lệnh tắt đèn xanh
     send_led_command("LED_GREEN_OFF")
     
-    # Tạo AI response bằng Gemini
-    print("🤖 Đang tạo AI response...")
+    # Tạo AI response bằng Gemini (đã tích hợp memory tự động)
+    print("🤖 Đang tạo AI response và phân tích memory...")
     ai_response = ask_gemini(transcription)
     
     # Chuẩn bị log entry với cả câu hỏi và câu trả lời
     if ai_response:
         # Tạo log entry bao gồm cả câu hỏi và AI response
-        log_entry = f"[{timestamp}]\n❓ Câu hỏi: {transcription}\n🤖 AI trả lời: {ai_response}\n{'-' * 80}"
+        log_entry = f"[{timestamp}]\n❓ Câu hỏi: {transcription}\n🤖 AI trả lời: {ai_response}\n💾 Memory: Tự động cập nhật\n{'-' * 80}"
         print(f"✅ AI response: {ai_response}")
+        print("💾 Memory đã được tự động phân tích và cập nhật")
     else:
         # Nếu không có AI response, chỉ log câu hỏi
         log_entry = f"[{timestamp}]\n❓ Câu hỏi: {transcription}\n❌ AI response: Không thể tạo phản hồi\n{'-' * 80}"

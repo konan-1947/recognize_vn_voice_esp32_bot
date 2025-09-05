@@ -10,9 +10,9 @@ const char* MDNS_HOSTNAME = "robot-server"; // Tên host để tìm kiếm qua m
 
 // --- Danh sách các mạng WiFi đã biết ---
 const char* known_wifis[][2] = {
-  { "Hồng Anh", "0915597079" },
-  { "Thai Binh 2", "0915597079" },
-  { "Router1", "dangVuDinh" }
+  { "Router1", "dangVuDinh" },
+  {"Nha Tro sv T4", "thanthien"}, 
+  {"Konan1", "rinnerinne"}
 };
 
 #endif
